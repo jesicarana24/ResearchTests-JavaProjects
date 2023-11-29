@@ -1,29 +1,32 @@
-// import org.checkerframework.checker.initialization.qual.Initialized;
-// import org.checkerframework.checker.initialization.qual.UnderInitialization;
-// import org.checkerframework.checker.nullness.qual.NonNull;
-// import org.checkerframework.checker.nullness.qual.Nullable;
-// import org.checkerframework.checker.initialization.qual.Uninitialized;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 
 class LList<T> implements ListInterface<T> {
 
-    private @Uninitialized Node firstNode;  // Reference to first node of chain
-    private @Initialized int numberOfEntries;
+    private @Nullable Node firstNode; // Reference to first node of chain
+    private int numberOfEntries;
 
     public LList() {
-        initializeDataFields();
+        firstNode = null;
+        numberOfEntries = 0;
+        // initializeDataFields();
     } // end default constructor
 
-    public void clear() 
-    {
-        initializeDataFields();
-
-    } // end clear
-    
-    // Initialize the class's data fields to indicate an empty list.
-    private void initializeDataFields() {
-        firstNode = new Node(null);
+    public void clear() {
+        firstNode = null;
         numberOfEntries = 0;
+
     }
+    // end clear
+    // @UnderInitialization
+    // private void initializeDataFields() {
+    // firstNode = null;
+    // numberOfEntries = 0;
+    // }
 
     public void add(T newEntry) {
         Node newNode = new Node(newEntry);
@@ -43,8 +46,11 @@ class LList<T> implements ListInterface<T> {
             Node newNode = new Node(newEntry);
             if (givenPosition == 1) // Case 1
             {
-                newNode.setNextNode(firstNode);
-                firstNode = newNode;
+                if (firstNode != null) {
+                    newNode.setNextNode(firstNode);
+                    firstNode = newNode;
+                }
+
             } else // Case 2: List is not empty
             { // and givenPosition > 1
                 Node nodeBefore = getNodeAt(givenPosition - 1);
@@ -54,51 +60,98 @@ class LList<T> implements ListInterface<T> {
             } // end if
             numberOfEntries++;
         } else {
-             throw new IndexOutOfBoundsException("Illegal position given to add operation.");
+            throw new IndexOutOfBoundsException("Illegal position given to add operation.");
         }
     } // end add
-
     public T remove(int givenPosition) {
-        T result = null; // Teturn value
-        if ((givenPosition >= 1) && (givenPosition <= numberOfEntries)) {
-            assert !isEmpty();
-            if (givenPosition == 1) // Case 1: remove first entry
-            {
-                result = firstNode.getData(); // Save entry to be removed
-                firstNode = firstNode.getNextNode(); // Remove entry
-            } else // Case 2: Not first entry
-            {
-                Node nodeBefore = getNodeAt(givenPosition - 1);
-                Node nodeToRemove = nodeBefore.getNextNode();
-                result = nodeToRemove.getData(); // Save entry to be removed
-                Node nodeAfter = nodeToRemove.getNextNode();
-                nodeBefore.setNextNode(nodeAfter);  // Remove entry
-            } // end if
-            numberOfEntries--;              // Update count
-            return result;
-        } 
-        else
+        if ((givenPosition < 1) || (givenPosition > numberOfEntries)) {
             throw new IndexOutOfBoundsException("Illegal position given to remove operation.");
+        }
+    
+        assert !isEmpty();
+    
+        T result;
+    
+        if (givenPosition == 1) { // Case 1: remove first entry
+            if (firstNode == null) {
+                throw new NoSuchElementException("Cannot remove from an empty list.");
+            }
+            result = firstNode.getData();
+            firstNode = firstNode.getNextNode();
+        } else {
+            Node nodeBefore = getNodeAt(givenPosition - 1);
+            if (nodeBefore == null || nodeBefore.getNextNode() == null) {
+                throw new NoSuchElementException("Invalid position: " + givenPosition);
+            }
+            Node nodeToRemove = nodeBefore.getNextNode();
+            if (nodeToRemove == null) {
+                throw new NoSuchElementException("No node found to remove at position: " + givenPosition);
+            }
+            result = nodeToRemove.getData();
+            nodeBefore.setNextNode(nodeToRemove.getNextNode());
+        }
+    
+        numberOfEntries--; // Update count
+        return result;
+    }
+    
 
-    } // end remove
 
+    // public T remove(int givenPosition) {
+    // T result = null; // Return value
+
+    // if ((givenPosition >= 1) && (givenPosition <= numberOfEntries)) {
+    // assert !isEmpty();
+
+    // if (givenPosition == 1) // Case 1: remove first entry
+    // {
+    // if (firstNode != null) {
+    // result = firstNode.getData(); // Save entry to be removed
+    // firstNode = firstNode.getNextNode(); // Remove entry
+    // }
+    // } else // Case 2: Not the first entry
+    // {
+    // Node nodeBefore = getNodeAt(givenPosition - 1);
+
+    // if (nodeBefore != null && nodeBefore.getNextNode() != null) {
+    // Node nodeToRemove = nodeBefore.getNextNode();
+
+    // if (nodeToRemove != null) {
+    // result = nodeToRemove.getData(); // Save entry to be removed
+    // Node nodeAfter = nodeToRemove.getNextNode();
+    // nodeBefore.setNextNode(nodeAfter); // Remove entry
+    // }
+    // }
+    // } // end if
+
+    // if (result != null) {
+    // numberOfEntries--; // Update count only if an entry is removed
+    // }
+
+    // assert result != null : "Result should not be null at this point";
+    // return result;
+    // } else {
+    // throw new IndexOutOfBoundsException("Illegal position given to the remove
+    // operation.");
+    // }
+    // } // end remove
 
     public T getEntry(int givenPosition) {
         if ((givenPosition >= 1) && (givenPosition <= numberOfEntries)) {
             assert !isEmpty();
-            return  getNodeAt(givenPosition).getData();
-        } else 
-             throw new IndexOutOfBoundsException("Illegal position given to getEntry operation.");
+            return getNodeAt(givenPosition).getData();
+        } else
+            throw new IndexOutOfBoundsException("Illegal position given to getEntry operation.");
     } // end getEntry
-    public T replace(int givenPosition,T newEntry) {
+
+    public T replace(int givenPosition, T newEntry) {
         if ((givenPosition >= 1) && (givenPosition <= numberOfEntries)) {
             assert !isEmpty();
             Node desiredNode = getNodeAt(givenPosition);
             T originalEntry = desiredNode.getData();
             desiredNode.setData(newEntry);
             return originalEntry;
-        }
-        else
+        } else
             throw new IndexOutOfBoundsException("Illegal position given to replace operation.");
     } // end replace
 
@@ -133,8 +186,9 @@ class LList<T> implements ListInterface<T> {
         return result;
     } // end toArray
 
-    public T[] toArray(T[] result){
-        if (result.length != numberOfEntries) throw new ArrayIndexOutOfBoundsException();
+    public T[] toArray(T[] result) {
+        if (result.length != numberOfEntries)
+            throw new ArrayIndexOutOfBoundsException();
         int index = 0;
         Node currentNode = firstNode;
         while ((index < numberOfEntries) && (currentNode != null)) {
@@ -147,35 +201,58 @@ class LList<T> implements ListInterface<T> {
 
     // Return a reference to the node at a given position.
     // Precondition: List is not empty;
-    //              1 <= givenPostion <= numberOfEntries
+    // 1 <= givenPostion <= numberOfEntries
     private Node getNodeAt(int givenPosition) {
-        assert (firstNode != null)
-                && (1 <= givenPosition) && (givenPosition <= numberOfEntries);
+        assert (firstNode != null) && (1 <= givenPosition) && (givenPosition <= numberOfEntries);
+
         Node currentNode = firstNode;
+
         // Traverse the chain to locate the desired node
         for (int counter = 1; counter < givenPosition; counter++) {
-            currentNode = currentNode.getNextNode();
+            if (currentNode != null) {
+                currentNode = currentNode.getNextNode();
+            } else {
+                // Handle the case where currentNode is unexpectedly null
+                throw new IllegalStateException("Unexpected null reference in getNodeAt");
+            }
         }
-        assert currentNode != null;
-        return currentNode;
+
+        // Add a null check before returning
+        if (currentNode != null) {
+            return currentNode;
+        } else {
+            // Handle the case where currentNode is unexpectedly null
+            throw new IllegalStateException("Unexpected null reference in getNodeAt");
+        }
     } // end getNodeAt
+      // private Node getNodeAt(int givenPosition) {
+      // assert (firstNode != null)
+      // && (1 <= givenPosition) && (givenPosition <= numberOfEntries);
+      // Node currentNode = firstNode;
+      // // Traverse the chain to locate the desired node
+      // for (int counter = 1; counter < givenPosition; counter++) {
+      // currentNode = currentNode.getNextNode();
+      // }
+      // assert currentNode != null;
+      // return currentNode;
+      // } // end getNodeAt
 
     private class Node {
 
-        public @Uninitialized Object previous;
+        public @Nullable Object previous;
         private T data; // entry in bag
-        private Node next; // link to next node
+        private @Nullable Node next; // link to next node
 
         private Node(T dataPortion) {
             this(dataPortion, null);
         } // end constructor
 
-        private Node(T dataPortion, Node nextNode) {
+        private Node(T dataPortion, @Nullable Node nextNode) {
             data = dataPortion;
             next = nextNode;
-            previous = new Object();
         } // end constructor
 
+        @SideEffectFree
         private T getData() {
             return data;
         } // end getData
@@ -184,16 +261,17 @@ class LList<T> implements ListInterface<T> {
             data = newData;
         } // end setData
 
-        private Node getNextNode() {
+        private @Nullable Node getNextNode() {
             return next;
         } // end getNextNode
 
-        private void setNextNode(Node nextNode) {
+        private void setNextNode(@Nullable Node nextNode) {
             next = nextNode;
         } // end setNextNode
     } // end Node
 
-    /** Build a string representation of the list.
+    /**
+     * Build a string representation of the list.
      *
      * @return A string showing the state of the list.
      */
@@ -211,9 +289,10 @@ class LList<T> implements ListInterface<T> {
         return result;
     }
 
-    /** Display the list with indices one to a line
-     *  This will correctly display an infinite list,
-     *  whereas the toString() method will never return.
+    /**
+     * Display the list with indices one to a line
+     * This will correctly display an infinite list,
+     * whereas the toString() method will never return.
      * 
      */
     public void display() {
@@ -229,97 +308,103 @@ class LList<T> implements ListInterface<T> {
 
     } // end display
 
-    
-   /** Check to see if two lists are the same.  
-    * @param aList Another linked list to check this list against.
-    * @return True if all the items in this list and the other list are equals.
-    */
+    /**
+     * Check to see if two lists are the same.
+     *
+     * @param aList Another linked list to check this list against.
+     * @return True if all the items in this list and the other list are equal.
+     */
     public boolean equals(LList<T> aList) {
-        boolean isEqual = false; // result of comparison of lists
+        boolean isEqual = false; // result of the comparison of lists
 
         Node currOne = firstNode;
         Node currTwo = aList.firstNode;
-        int counter;
 
         if (numberOfEntries == aList.numberOfEntries) {
             // Lists have equal lengths, so traverse both and compare items as you go:
-            // (NOTE: loop is skipped if lists are empty)
+            // (NOTE: the loop is skipped if lists are empty)
 
-            while ((currOne != null) && (currOne.getData()).equals(currTwo.getData())) {
+            while ((currOne != null) && (currTwo != null) && Objects.equals(currOne.getData(), currTwo.getData())) {
                 currOne = currOne.getNextNode();
                 currTwo = currTwo.getNextNode();
             } // end while
 
             // If we made it to the end, the lists are equal
-            isEqual = (currOne == null);
+            isEqual = (currOne == null && currTwo == null);
         }
 
         return isEqual;
     } // end equals
 
-    
-        
     /*********************************************************************
      * 
      * METHODS TO BE COMPLETED
      * 
      ***********************************************************************/
-     
 
-    /** Reverse the order of items in a list.
+    /**
+     * Reverse the order of items in a list.
      */
     public void reverse() {
-        @Initialized @NonNull Node previous = null;
+        Node previous = null;
         Node current = firstNode;
-        @Initialized @NonNull Node next = null;
+        Node next = null;
         while (current != null) {
-            next = current.next;
-            current.next = previous;
+            next = current.getNextNode();
+            current.setNextNode(previous);
             previous = current;
             current = next;
         }
         firstNode = previous;
-
-     }
-
-    /** Cycle the first item to the end of the list.
-     */
-    public void cycle(){
-        @Initialized @NonNull Node newnode = firstNode;
-        firstNode = getNodeAt(2);
-        numberOfEntries--;
-        Node lastNode = getNodeAt(numberOfEntries);
-        numberOfEntries++;
-        lastNode.next = newnode;
-        newnode.previous = lastNode;
-        newnode.next = null;
-        lastNode.setNextNode(newnode);
-
-        // CODE TO BE COMPLETED
     }
 
-   /** Add an array of tiems to the end of the list.  
-    * @param items an array of objects.
-    */
+    /**
+     * Cycle the first item to the end of the list.
+     */
+    public void cycle() {
+        if (firstNode != null) {
+            Node newnode = firstNode;
+            firstNode = getNodeAt(2);
+            numberOfEntries--;
 
-    public void addAll(T[] items){
-        if(firstNode == null){
+            if (numberOfEntries > 0) {
+                Node lastNode = getNodeAt(numberOfEntries);
+                numberOfEntries++;
+                lastNode.next = newnode;
+                if (newnode != null) {
+                    newnode.previous = lastNode;
+                    newnode.next = null;
+                }
+                lastNode.setNextNode(newnode);
+            }
+            // CODE TO BE COMPLETED
+        }
+    }
+
+    /**
+     * Add an array of tiems to the end of the list.
+     * 
+     * @param items an array of objects.
+     */
+
+    public void addAll(T[] items) {
+        if (firstNode == null) {
             Node firstNode2 = new Node(items[0]);
             firstNode = firstNode2;
             numberOfEntries++;
             int sizeofarray = items.length;
-            for(int i = 1 ; i < sizeofarray; i ++) {
+            for (int i = 1; i < sizeofarray; i++) {
                 T data = items[i];
                 Node lastNode = getNodeAt(numberOfEntries);
                 numberOfEntries++;
+                @Nullable
                 Node newNode = new Node(data);
                 lastNode.next = newNode;
                 newNode.previous = lastNode;
                 newNode.next = null;
                 lastNode.setNextNode(newNode);
             }
-        }
-        else if(firstNode!= null) {
+        } else if (firstNode != null) {
             int sizeofarray = items.length;
             for (int i = 0; i < sizeofarray; i++) {
                 T data = items[i];
@@ -331,35 +416,35 @@ class LList<T> implements ListInterface<T> {
                 newNode.next = null;
                 lastNode.setNextNode(newNode);
             }
-            //CODE TO BE COMPLETED
+            // CODE TO BE COMPLETED
         }
-     }
+    }
 
-
-    public boolean contains(T anEntry)     {
+    public boolean contains(T anEntry) {
         return contains(anEntry, firstNode);
     } // end contains
-    
-    /** Recursive method that checks whether a list contains an object.  
+
+    /**
+     * Recursive method that checks whether a list contains an object.
+     * 
      * @param anEntry The object that is the desired entry.
      * @return True if the list contains anEntry, or false if not.
      */
-    private boolean contains(T anEntry, Node startNode) {
+    private boolean contains(T anEntry, @Nullable Node startNode) {
         boolean variable = false;
-        if(getLength()>0 && startNode!= null) {
+        if (getLength() > 0 && startNode != null) {
             if (startNode.getData() == anEntry) {
                 variable = true;
                 return variable;
-
 
             } else {
                 return contains(anEntry, startNode.next);
 
             }
-        }else{
+        } else {
             return variable;
         }
-        //CODE TO BE COMPLETED
+        // CODE TO BE COMPLETED
     } // end contains
 
 }
